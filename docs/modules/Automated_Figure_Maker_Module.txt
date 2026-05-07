@@ -1,0 +1,419 @@
+OncoViz
+Automated Figure Maker Module
+Comprehensive Technical Documentation
+
+BMED 8813 — Biomedical Data Visualization
+Georgia Institute of Technology
+Author: Birendra
+
+================================================================================
+
+TABLE OF CONTENTS
+
+1. Overview
+2. Customization System
+   2.1 Customization Options
+   2.2 Color Palette System
+       2.2.1 Single-Color Palettes
+       2.2.2 Multi-Color Palettes
+       2.2.3 Heatmap Color Scales
+3. Distribution Plot
+   3.1 Variable Selection
+   3.2 Display Options
+   3.3 How It Works
+   3.4 Summary Statistics
+4. Categorical Plot
+   4.1 Variable Selection
+   4.2 Layout Options
+       4.2.1 Without Grouping
+       4.2.2 With Grouping
+   4.3 How It Works
+   4.4 Data Tables
+5. Clinical Feature Heatmap
+   5.1 Purpose and Use Cases
+   5.2 Variable Selection
+   5.3 Z-Score Standardization
+   5.4 Patient Labels
+   5.5 Adaptive Sizing
+   5.6 Reading the Heatmap
+6. Figure Export System
+   6.1 Export Workflow
+   6.2 Kaleido Dependency
+   6.3 Table Export
+7. UI / UX Design
+   7.1 Pill-Button Tabs
+   7.2 Red Sliders
+   7.3 Consistent Layout
+8. Implementation Reference
+   8.1 Key Source Files
+   8.2 Dependencies
+   8.3 Plotly Configuration
+
+================================================================================
+
+1. OVERVIEW
+
+The Automated Figure Maker module in OncoViz enables researchers to create publication-quality figures from clinical trial data through an interactive, code-free interface. It is designed to complement the Statistical Analysis module by providing visual exploration tools that do not require hypothesis testing.
+
+The module is organized into three plot types, each accessible as a tab within the main interface:
+
+  Distribution Plot: Explore the frequency distribution of a continuous variable with histograms, KDE curves, and optional group splitting.
+  Categorical Plot: Visualize counts or proportions of categorical variables, with optional grouping, stacking, and percentage display.
+  Clinical Feature Heatmap: Compare standardized clinical measurements across all patients to identify patterns and subgroups.
+
+Every plot includes a customization panel for adjusting the title, color palette, chart height, and opacity. All plots support figure download (PNG, JPEG, SVG) and all associated data tables support CSV download.
+
+================================================================================
+
+2. CUSTOMIZATION SYSTEM
+
+All three plot types share a common customization panel rendered inside a collapsible "Customize Appearance" expander. This ensures a consistent user experience across plot types.
+
+
+2.1 Customization Options
+
+  Option               | Description
+  ---------------------+------------------------------------------------------------
+  Chart title          | Free-text input. If left blank, an auto-generated title
+                       | is used based on the selected variables (e.g.,
+                       | "Distribution of kps" or "therapy by cell").
+  Color palette        | Dropdown with 12 options: 5 single-color palettes (for
+                       | plots without group splitting) and 7 multi-color palettes.
+                       | All palettes are curated to be colorblind-safe (no pure
+                       | red or green).
+  Chart height         | Slider from 300px to 900px, default 500px. Allows the
+                       | user to adjust the vertical size of the chart.
+  Opacity              | Slider from 0.1 to 1.0, default 0.75. Controls the
+                       | transparency of bars, shapes, and fills.
+
+
+2.2 Color Palette System
+
+The palette system is central to OncoViz's accessibility commitment. Every palette option has been curated to exclude pure red (#FF0000 and similar) and pure green (#00FF00 and similar) to ensure the dashboard is usable by individuals with red-green color vision deficiency (the most common form of color blindness).
+
+
+2.2.1 Single-Color Palettes
+
+These are used for plots that do not involve group splitting (e.g., a single histogram without a split variable). Each contains one color:
+
+  Palette Name         | Color
+  ---------------------+------------------------------------------------------------
+  Steel Blue           | #0077B6 — a strong, accessible blue
+  Teal                 | #2A9D8F — blue-green, distinct from pure green
+  Orange               | #F4A261 — warm amber-orange
+  Purple               | #6A4C93 — deep violet
+  Dark Navy            | #3D405B — dark blue-grey
+
+
+2.2.2 Multi-Color Palettes
+
+These are used when plots involve group splitting or multiple categories. Each has been derived from well-known Plotly and scientific color scales, but with red and green entries manually removed or replaced:
+
+  Palette Name         | Description                                    | Colors
+  ---------------------+------------------------------------------------+--------
+  OncoViz Default      | Custom 10-color palette designed for OncoViz:  | 10
+                       | steel blue, terra cotta, teal, amber, purple,  |
+                       | dark teal, mauve, cream, dark navy, light blue |
+  Viridis Safe         | Derived from the Viridis perceptually uniform  | 7
+                       | scale with yellow-green entries removed         |
+  Plasma               | Full Plasma sequential scale (purple to        | 10
+                       | yellow); inherently avoids red and green        |
+  Blues                 | Plotly's sequential Blues scale; monochromatic  | 9
+                       | and inherently safe                             |
+  Ocean                | Custom 8-color scale spanning navy to orange   | 8
+                       | through purple and pink                         |
+  Pastel Safe          | Derived from Plotly Pastel with green entries  | 8
+                       | (3 shades) removed                              |
+  Bold Safe            | Derived from Plotly Bold with green (2 shades) | 7
+                       | and red-pink (1 shade) removed                  |
+
+
+2.2.3 Heatmap Color Scales
+
+The heatmap tab uses diverging color scales from Plotly, selected to avoid red-green:
+
+  Scale                | Description
+  ---------------------+------------------------------------------------------------
+  PuOr (default)       | Purple-Orange diverging scale. Purple for low values,
+                       | orange for high values, white for center.
+  BrBG                 | Brown-Blue-Green diverging scale.
+  Viridis              | Perceptually uniform sequential scale (purple to yellow).
+  Plasma               | Sequential scale (purple to yellow through pink and
+                       | orange).
+  Inferno              | Sequential scale (black to yellow through red and orange).
+  Cividis              | Designed specifically for color vision deficiency; blue
+                       | to yellow.
+
+================================================================================
+
+3. DISTRIBUTION PLOT
+
+The Distribution Plot visualizes the frequency distribution of a single continuous (numerical) variable, optionally split by a categorical variable to compare distributions across groups.
+
+
+3.1 Variable Selection
+
+  Selector             | Description
+  ---------------------+------------------------------------------------------------
+  Numerical variable   | The continuous variable to plot on the x-axis (e.g.,
+                       | survival time, age, serum hemoglobin).
+  Split by (optional)  | A categorical or binary variable. When selected, separate
+                       | distributions are shown for each group level, color-coded.
+
+
+3.2 Display Options
+
+  Option               | Description
+  ---------------------+------------------------------------------------------------
+  Histogram            | Checkbox (default: on). Shows frequency bars.
+  KDE curve            | Checkbox (default: on). Shows a kernel density estimate
+                       | as a smooth marginal violin above the histogram. When both
+                       | histogram and KDE are on, the histogram is normalized to
+                       | probability density so the KDE overlay is meaningful.
+  Rug plot             | Checkbox (default: off). Shows individual data points as
+                       | thin tick marks along the x-axis, useful for seeing the
+                       | raw data distribution especially with small samples.
+  Number of bins       | Slider (5-100, default 30). Controls how many bars the
+                       | histogram is divided into. More bins reveal finer detail
+                       | but can be noisy; fewer bins show the overall shape.
+  Split display mode   | Appears only when a split variable is selected. "Side-by-
+                       | Side" (default): bars for each group are placed next to
+                       | each other (barmode=group), avoiding overlap. "Overlay":
+                       | bars overlap with reduced opacity (0.55 max), useful for
+                       | direct comparison of distributions.
+
+
+3.3 How It Works
+
+When the Histogram checkbox is enabled, a Plotly Express histogram is generated with the specified number of bins. If KDE is also enabled, the histogram is normalized to probability density and a marginal violin plot is added above the main chart to show the density shape. If only KDE is selected (no histogram), a standalone violin plot is rendered.
+
+When a split variable is selected and Side-by-Side mode is chosen, the bars are grouped next to each other (barmode="group"), which eliminates the overlap problem that occurs when bars from multiple groups share the same bin range. In Overlay mode, opacity is automatically capped at 0.55 to ensure all groups remain visible.
+
+If rug plot is enabled, individual data points are added as thin line markers along the bottom of the chart. These are color-coded by group when a split variable is active.
+
+
+3.4 Summary Statistics
+
+An expandable "Summary Statistics" section below the plot shows descriptive statistics (count, mean, std, min, 25%, 50%, 75%, max) for the selected variable. When a split variable is active, statistics are computed per group. The table is downloadable as CSV.
+
+================================================================================
+
+4. CATEGORICAL PLOT
+
+The Categorical Plot is a unified bar and proportion chart that visualizes the distribution of categorical variables. It was created by merging two originally separate plot types (Bar Chart and Proportion Plot) into a single, more flexible interface.
+
+
+4.1 Variable Selection
+
+  Selector             | Description
+  ---------------------+------------------------------------------------------------
+  Primary variable     | The main categorical or binary variable whose levels form
+  (x-axis)             | the bars (e.g., therapy type, tumor cell type, treatment
+                       | dose, performance status).
+  Group by (color)     | Optional. A second categorical variable that splits each
+                       | bar into colored segments or side-by-side sub-bars. The
+                       | dropdown excludes the primary variable to prevent
+                       | self-grouping.
+
+
+4.2 Layout Options
+
+The available options change based on whether grouping is active:
+
+
+4.2.1 Without Grouping
+
+  Option               | Description
+  ---------------------+------------------------------------------------------------
+  Display as           | "Counts" (default) shows raw frequency counts.
+                       | "Percentage (%)" shows each category as a percentage of
+                       | the total.
+  Orientation          | "Vertical" (default) or "Horizontal" — horizontal is
+                       | useful when category labels are long.
+  Show values          | Checkbox (default: on). Displays the count or percentage
+                       | value on each bar.
+
+
+4.2.2 With Grouping
+
+  Option               | Description
+  ---------------------+------------------------------------------------------------
+  Bar mode             | "Side by Side" (default): sub-bars for each group are
+                       | placed next to each other (barmode=group), making it easy
+                       | to compare group sizes. "Stacked": sub-bars are stacked
+                       | on top of each other, showing the total as well as
+                       | composition.
+  Display as           | "Counts" shows raw numbers. "Percentage (%)" normalizes
+                       | each primary category to 100%, showing the proportional
+                       | composition of the group variable within each level of
+                       | the primary variable.
+  Orientation          | Vertical or Horizontal.
+  Show values          | Displays count or percentage values on each bar segment.
+
+
+4.3 How It Works
+
+Without grouping, the plot computes value_counts() on the primary variable, sorts alphabetically, and renders a simple bar chart. When percentage mode is selected, the counts are divided by the total and multiplied by 100.
+
+With grouping, a cross-tabulation (pd.crosstab) is computed between the primary and group variables. This produces a contingency table where rows are the primary variable levels and columns are the group variable levels. In percentage mode, each row is normalized to sum to 100%, showing the proportional composition. The bar mode (group or stack) determines how these segments are arranged visually.
+
+
+4.4 Data Tables
+
+An expandable "Data Table" section below the plot shows:
+
+  - Without grouping: A frequency table with columns for the variable, count, and percentage.
+  - With grouping: A contingency table (cross-tabulation) with marginal totals. When percentage mode is active, an additional proportions table is shown.
+
+All tables are downloadable as CSV.
+
+================================================================================
+
+5. CLINICAL FEATURE HEATMAP
+
+The Clinical Feature Heatmap provides a patient-by-variable matrix visualization that helps identify patterns, clusters, and outliers across multiple clinical measurements simultaneously.
+
+
+5.1 Purpose and Use Cases
+
+The heatmap is particularly useful for:
+
+  - Identifying patient subgroups with similar clinical profiles
+  - Spotting variables that co-vary across patients (e.g., tumor size and acid phosphatase)
+  - Detecting outliers — patients with extreme values across multiple variables
+  - Revealing group-specific patterns when patients are sorted by a categorical variable (e.g., treatment arm or disease stage)
+
+
+5.2 Variable Selection
+
+  Selector             | Description
+  ---------------------+------------------------------------------------------------
+  Select clinical      | Multi-select dropdown showing all numerical variables in
+  variables            | the dataset. Defaults to the first 6 (or fewer if the
+                       | dataset has fewer). The user must select at least 2
+                       | variables.
+  Group patients by    | Optional. Sorts patients by a categorical or binary
+                       | variable before rendering, so that patients in the same
+                       | group appear adjacent in the heatmap. This reveals
+                       | group-specific patterns.
+  Color scale          | Diverging or sequential color scale for the heatmap
+                       | cells. Default is PuOr (purple-orange). All options are
+                       | colorblind-safe.
+
+
+5.3 Z-Score Standardization
+
+Before plotting, each variable is z-score standardized independently: z = (x - mean) / std. This is essential because clinical variables are measured on vastly different scales (e.g., age in years vs. serum hemoglobin in g/100ml vs. tumor size in cm2). Without standardization, the color scale would be dominated by variables with large absolute values, making it impossible to compare patterns across variables.
+
+After standardization, all variables share the same scale: 0 represents the mean, +1 is one standard deviation above the mean, -1 is one standard deviation below. The color range is clamped to [-3, +3] to prevent extreme outliers from compressing the color scale for all other values.
+
+
+5.4 Patient Labels
+
+Each row represents one patient. When a grouping variable is selected, the y-axis labels include the group membership (e.g., "P42 (standard)"). When no grouping is selected, labels are simply "Patient 1", "Patient 2", etc. The y-axis tick labels are hidden to keep the plot clean, since displaying labels for hundreds of patients would be unreadable.
+
+
+5.5 Adaptive Sizing
+
+The heatmap width scales automatically with the number of selected variables (approximately 150 pixels per variable, plus 200 pixels for margins, the y-axis label, and the colorbar). This is clamped to a range of 450-1400 pixels. The height is controlled by the customization panel slider (default 500px). The plot does not stretch to fill the full page width, which prevents individual cells from becoming excessively wide with few variables.
+
+
+5.6 Reading the Heatmap
+
+With the default PuOr color scale: purple/cool tones indicate values below the mean (negative z-scores), white/light indicates values near the mean, and orange/warm tones indicate values above the mean (positive z-scores). A column of consistent dark purple across most patients indicates a variable with a few patients having much higher values than the rest. A row with multiple dark-colored cells indicates a patient with extreme values across several measurements.
+
+================================================================================
+
+6. FIGURE EXPORT SYSTEM
+
+Every plot in the Automated Figure Maker module includes a figure download section rendered directly below the chart.
+
+
+6.1 Export Workflow
+
+The download section consists of two elements side by side: a format dropdown (PNG, JPEG, SVG) and a "Download Figure" button. When the user selects a format and clicks the button, the Plotly figure is rendered as a static image at high resolution (3x scale, 1200x700 base size) and downloaded to the user's browser.
+
+
+6.2 Kaleido Dependency
+
+Static image export requires the kaleido Python package. OncoViz checks for kaleido availability at runtime. If kaleido is installed, the selected format (PNG, JPEG, or SVG) is exported. If kaleido is not installed, the button exports an interactive HTML file instead, and a caption is displayed: "Install kaleido for PNG/JPEG/SVG export: pip install -U kaleido". This graceful degradation ensures the download button always works, regardless of the environment.
+
+
+6.3 Table Export
+
+Every data table displayed in the module (summary statistics, frequency tables, contingency tables, proportion tables) uses the dataframe_with_csv helper, which renders the Streamlit dataframe and places a "Download CSV" button directly below it. The CSV includes all columns with headers and is named descriptively (e.g., "dist_summary_kps.csv", "contingency_therapy_cell.csv").
+
+================================================================================
+
+7. UI / UX DESIGN
+
+
+7.1 Pill-Button Tabs
+
+The three plot type tabs (Distribution, Categorical Plot, Heatmap) are styled as pill-shaped buttons using custom CSS injected in app.py. The active tab is highlighted in OncoViz blue (#0077B6) with white text and a subtle shadow. Inactive tabs have a light grey background with dark text. The default Streamlit underline indicator is hidden. This styling is consistent across both the Statistical Analysis and Figure Maker modules.
+
+
+7.2 Red Sliders
+
+All sliders throughout OncoViz (number of bins, chart height, opacity, correlation threshold, etc.) are styled with a red color scheme (#D62828) via custom CSS. The thumb, filled track (left of thumb), and unfilled track (right of thumb, in lighter red) are all colored consistently. This provides a distinctive visual identity and makes sliders easy to locate on the page.
+
+
+7.3 Consistent Layout
+
+Each plot tab follows the same layout pattern: variable selectors at the top in 2-column layout, display options in a horizontal row of radio buttons and checkboxes, the customization expander, the chart, the download section, and an expandable data table at the bottom. This consistency reduces cognitive load as users switch between plot types.
+
+================================================================================
+
+8. IMPLEMENTATION REFERENCE
+
+
+8.1 Key Source Files
+
+  File                           | Description
+  -------------------------------+--------------------------------------------
+  src/components/viz_panel.py    | Main module file. Contains all three plot
+                                 | rendering functions (_render_distribution,
+                                 | _render_categorical_plot, _render_heatmap),
+                                 | the palette system (PALETTE_OPTIONS), the
+                                 | shared customization sidebar
+                                 | (_customization_sidebar), and the color
+                                 | sequence resolver (_get_color_sequence).
+  src/utils/helpers.py           | Contains figure_download_ui() for the
+                                 | figure export UI and dataframe_with_csv()
+                                 | for the table display with CSV download.
+  src/theme.py                   | Defines the OncoViz Default color palette
+                                 | (CHART_COLORS) and standard Plotly layout
+                                 | arguments (template, background, font).
+  src/data_loader.py             | Provides get_variable_description() for
+                                 | human-readable variable labels used in axis
+                                 | titles and tooltips, and
+                                 | get_column_metadata() for classifying
+                                 | variables as numerical, categorical, or
+                                 | binary.
+  app.py                         | Contains the global CSS for pill-button
+                                 | tabs and red sliders, and routes between
+                                 | the Statistical Analysis and Figure Maker
+                                 | modules.
+
+
+8.2 Dependencies
+
+  Package              | Purpose
+  ---------------------+------------------------------------------------------------
+  plotly               | All interactive charts (histogram, bar, imshow heatmap,
+                       | violin). Used via both plotly.express for high-level
+                       | charts and plotly.graph_objects for low-level
+                       | customization.
+  kaleido              | Static image export (PNG, JPEG, SVG). Optional but
+                       | recommended.
+  streamlit            | Web framework, UI components (selectbox, radio, slider,
+                       | checkbox, tabs, expander, plotly_chart, dataframe,
+                       | download_button, columns).
+  pandas               | Data manipulation (value_counts, crosstab, describe,
+                       | groupby, z-score standardization via apply).
+  numpy                | Numerical operations for z-score computation.
+
+
+8.3 Plotly Configuration
+
+All charts use a consistent Plotly layout configuration defined in src/theme.py: the plotly_white template with transparent paper and plot backgrounds, and dark text (#1A1A2E). This ensures a clean, professional appearance that integrates with Streamlit's light theme. Interactive features (hover tooltips, zoom, pan) are enabled by default through Plotly's built-in interactivity.

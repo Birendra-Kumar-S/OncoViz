@@ -1,0 +1,520 @@
+OncoViz
+Statistical Analysis Module
+Comprehensive Technical Documentation
+
+BMED 8813 — Biomedical Data Visualization
+Georgia Institute of Technology
+Author: Birendra
+
+================================================================================
+
+TABLE OF CONTENTS
+
+1. Overview
+2. Group Comparison
+   2.1 Variable Selection
+   2.2 Smart Test Recommendation
+   2.3 Two-Sample Tests
+       2.3.1 Independent t-test
+       2.3.2 Mann-Whitney U Test
+       2.3.3 Auto Mode (Normality Check)
+   2.4 Multi-Group Tests (3+ Groups)
+       2.4.1 One-Way ANOVA
+       2.4.2 Kruskal-Wallis H Test
+   2.5 Effect Sizes
+       2.5.1 Cohen's d (Two-Sample)
+       2.5.2 Eta-Squared (ANOVA)
+       2.5.3 Epsilon-Squared (Kruskal-Wallis)
+   2.6 Post-Hoc Pairwise Comparisons
+       2.6.1 Pairwise Test Selection
+       2.6.2 Multiple Testing Correction
+       2.6.3 Post-Hoc Results Table
+       2.6.4 Forest Plot
+   2.7 Visualization: Violin + Box Plot
+3. Correlation Analysis
+   3.1 Variable Selection
+   3.2 Correlation Methods
+       3.2.1 Pearson Correlation
+       3.2.2 Spearman Rank Correlation
+       3.2.3 Kendall's Tau
+   3.3 Auto-Recommendation Logic
+   3.4 Confidence Interval (Fisher z-transformation)
+   3.5 Correlation Strength Interpretation
+   3.6 Result Display
+   3.7 Scatter Plot with Trendline
+   3.8 Correlation Matrix
+4. Survival Analysis
+   4.1 What is Survival Analysis?
+   4.2 Dataset Configuration
+   4.3 Kaplan-Meier Estimation
+   4.4 Grouping
+   4.5 Log-Rank Test
+   4.6 Kaplan-Meier Plot Components
+   4.7 Number at Risk Table
+   4.8 Summary Table
+   4.9 Median Survival CI Computation
+5. Global Features
+   5.1 Figure Export
+   5.2 Table Export
+   5.3 Session State Persistence
+   5.4 Colorblind-Safe Design
+6. Implementation Reference
+   6.1 Key Source Files
+   6.2 Dependencies
+
+================================================================================
+
+1. OVERVIEW
+
+The Statistical Analysis module in OncoViz provides an interactive interface for running hypothesis tests on cancer clinical trial data. It is designed so that researchers with varying levels of statistical expertise can select variables, receive smart test recommendations, run analyses, and interpret results—all through an intuitive web interface without writing code.
+
+The module is organized into three analysis tabs, each addressing a distinct analytical question:
+
+  Group Comparison: Does a continuous measurement differ across patient groups?
+  Correlation Analysis: How strongly are two continuous variables related?
+  Survival Analysis: Do survival outcomes differ across patient groups?
+
+Every analysis produces a structured result with: the test name, test statistic, p-value, significance determination, a plain-English interpretation, effect sizes with confidence intervals, and visualizations. All results persist in Streamlit session state so they are not lost when the user interacts with other UI elements.
+
+================================================================================
+
+2. GROUP COMPARISON
+
+This tab compares a continuous (numerical) measurement variable across groups defined by a categorical variable. The system automatically determines whether the comparison involves two groups or three or more, and recommends the appropriate test accordingly.
+
+
+2.1 Variable Selection
+
+The user selects two variables:
+
+  Grouping variable: A categorical or binary column that defines the groups (e.g., therapy type, tumor cell type, treatment arm).
+  Measurement variable: A continuous numerical column to compare across those groups (e.g., survival time, Karnofsky performance score, serum hemoglobin).
+
+An expandable "Variable info" section shows human-readable descriptions of both selected variables drawn from the dataset registry.
+
+
+2.2 Smart Test Recommendation
+
+Before the user runs any test, OncoViz analyzes the data and displays an informational banner recommending the most appropriate test. This recommendation is based on:
+
+  - The number of groups (2 vs. 3+)
+  - The variable types (numerical vs. categorical)
+  - The suggestion engine maps variable type combinations to the correct test family
+
+The user can override the recommendation by selecting a different test from the dropdown.
+
+
+2.3 Two-Sample Tests
+
+When the grouping variable has exactly 2 unique values, OncoViz offers the following tests:
+
+
+2.3.1 Independent t-test
+
+  Property             | Description
+  ---------------------+------------------------------------------------------------
+  Purpose              | Compare means of two independent groups
+  Assumptions          | Both groups are approximately normally distributed;
+                       | observations are independent
+  Variance handling    | Levene's test is run automatically. If variances are
+                       | unequal (p < 0.05), Welch's t-test is used instead of
+                       | Student's t-test
+  Test statistic       | t-statistic: ratio of the difference in group means to
+                       | the standard error of that difference
+  Null hypothesis      | The population means of the two groups are equal
+  When to use          | Data is approximately normal in both groups (checked via
+                       | Shapiro-Wilk when set to "auto")
+
+
+2.3.2 Mann-Whitney U Test
+
+  Property             | Description
+  ---------------------+------------------------------------------------------------
+  Purpose              | Compare distributions of two independent groups without
+                       | assuming normality
+  Assumptions          | Observations are independent; ordinal or continuous data
+  Test statistic       | U-statistic: based on the ranks of values across both
+                       | groups combined
+  Null hypothesis      | The distributions of the two groups are identical
+  When to use          | Data is non-normal, contains outliers, or has ordinal
+                       | measurement scales. This is the non-parametric alternative
+                       | to the t-test
+
+
+2.3.3 Auto Mode (Normality Check)
+
+When set to "auto", the system runs the Shapiro-Wilk normality test on each group separately. If both groups pass (p >= 0.05), the independent t-test is used. If either group fails, the Mann-Whitney U test is applied. For samples larger than 5,000, the D'Agostino-Pearson test is used instead of Shapiro-Wilk, as the latter becomes overly sensitive at large sample sizes.
+
+
+2.4 Multi-Group Tests (3+ Groups)
+
+When the grouping variable has 3 or more unique values, OncoViz uses omnibus tests that compare all groups simultaneously.
+
+
+2.4.1 One-Way ANOVA
+
+  Property             | Description
+  ---------------------+------------------------------------------------------------
+  Purpose              | Test whether the means of 3+ groups are all equal
+  Assumptions          | Normality within each group; homogeneity of variances;
+                       | independence
+  Test statistic       | F-statistic: ratio of between-group variance to
+                       | within-group variance
+  Effect size          | Eta-squared (n2): proportion of total variance explained
+                       | by group membership. Interpreted as: < 0.01 negligible,
+                       | 0.01-0.06 small, 0.06-0.14 medium, > 0.14 large
+  Null hypothesis      | All group population means are equal
+  When to use          | Data is approximately normal in all groups
+
+
+2.4.2 Kruskal-Wallis H Test
+
+  Property             | Description
+  ---------------------+------------------------------------------------------------
+  Purpose              | Non-parametric alternative to one-way ANOVA for comparing
+                       | 3+ groups
+  Assumptions          | Observations are independent; similar distribution shapes
+                       | across groups
+  Test statistic       | H-statistic: based on ranks of all observations pooled
+                       | across groups
+  Effect size          | Epsilon-squared (e2): calculated as (H - k + 1) / (n - k)
+  Null hypothesis      | All groups come from the same distribution
+  When to use          | Data violates normality assumptions or contains outliers
+
+
+2.5 Effect Sizes
+
+Every group comparison includes an effect size measure to quantify the practical significance of the finding, independent of sample size.
+
+
+2.5.1 Cohen's d (Two-Sample)
+
+Cohen's d measures the standardized difference between two group means. It is calculated as the difference in means divided by the pooled standard deviation. The 95% confidence interval is computed using the non-central t-distribution approximation.
+
+  Magnitude            | Cohen's d Value
+  ---------------------+--------------------
+  Negligible           | < 0.2
+  Small                | 0.2 - 0.5
+  Medium               | 0.5 - 0.8
+  Large                | > 0.8
+
+
+2.5.2 Eta-Squared (ANOVA)
+
+Eta-squared represents the proportion of total variance in the dependent variable that is attributable to group membership. It is computed from the F-statistic as: n2 = (F x df_between) / (F x df_between + df_within).
+
+
+2.5.3 Epsilon-Squared (Kruskal-Wallis)
+
+Epsilon-squared is the non-parametric analog of eta-squared, calculated from the H-statistic.
+
+
+2.6 Post-Hoc Pairwise Comparisons
+
+When an omnibus test (ANOVA or Kruskal-Wallis) is significant, it tells us that at least one group differs, but not which groups differ. Post-hoc pairwise comparisons identify the specific differing pairs.
+
+
+2.6.1 Pairwise Test Selection
+
+The pairwise test automatically matches the omnibus test used:
+
+  - After ANOVA: Welch's t-test (does not assume equal variances)
+  - After Kruskal-Wallis: Mann-Whitney U test
+
+
+2.6.2 Multiple Testing Correction
+
+When performing multiple pairwise comparisons, the probability of a Type I error (false positive) increases. OncoViz provides three correction methods:
+
+  Method               | Description
+  ---------------------+------------------------------------------------------------
+  Bonferroni           | Divides the significance threshold by the number of
+                       | comparisons. Most conservative; controls family-wise error
+                       | rate (FWER) strictly. Recommended for small numbers of
+                       | comparisons (<=6 pairs) or when false positives are costly.
+  Holm-Bonferroni      | Step-down procedure that is uniformly more powerful than
+                       | Bonferroni while still controlling FWER. Recommended for
+                       | larger numbers of comparisons with non-parametric tests.
+  Benjamini-Hochberg   | Controls the false discovery rate rather than FWER. More
+  (FDR)                | powerful (fewer false negatives) but allows a controlled
+                       | proportion of false positives. Recommended for exploratory
+                       | analyses or unbalanced group sizes.
+
+OncoViz auto-recommends the correction method based on the number of pairwise comparisons, whether group sizes are balanced (ratio of largest to smallest < 1.5), and whether the omnibus test was parametric or non-parametric.
+
+
+2.6.3 Post-Hoc Results Table
+
+The results table shows for each pair: both group labels, the test used, test statistic, raw p-value, adjusted p-value, significance flag (checkmark or cross), Cohen's d with 95% CI, and a text interpretation of effect size magnitude. Significant rows are highlighted with a teal background.
+
+
+2.6.4 Forest Plot
+
+A forest plot visualizes the pairwise effect sizes (Cohen's d) with 95% confidence intervals. Each comparison is shown as a point (the effect size) with horizontal bars (the CI). A vertical dashed line at d = 0 marks "no effect." Significant pairs are colored teal; non-significant pairs are grey. This provides a rapid visual assessment of which comparisons are meaningful and how large the effects are.
+
+
+2.7 Visualization: Violin + Box Plot
+
+Every group comparison produces an interactive violin plot with overlaid components:
+
+  - Violin body: shows the full probability density of each group, colored by group
+  - Box plot overlay: white-filled box with black edges showing quartiles (Q1, median, Q3)
+  - Mean line: red dashed line inside each violin showing the group mean
+  - Data points: black dots jittered slightly and centered on the violin, showing individual observations
+
+================================================================================
+
+3. CORRELATION ANALYSIS
+
+This tab measures the strength and direction of the relationship between two continuous numerical variables.
+
+
+3.1 Variable Selection
+
+The user selects two numerical variables (Variable X and Variable Y). The dropdown for Variable Y automatically excludes the variable selected as X to prevent self-correlation.
+
+
+3.2 Correlation Methods
+
+
+3.2.1 Pearson Correlation
+
+  Property             | Description
+  ---------------------+------------------------------------------------------------
+  Purpose              | Measure the strength of the linear relationship between
+                       | two continuous variables
+  Assumptions          | Both variables are approximately normally distributed;
+                       | the relationship is linear; no extreme outliers
+  Coefficient range    | -1 to +1, where -1 = perfect negative linear,
+                       | 0 = no linear relationship, +1 = perfect positive linear
+  Test statistic       | Pearson's r, derived from the covariance of the two
+                       | variables divided by the product of their standard
+                       | deviations
+  When to use          | Both variables pass normality tests and the relationship
+                       | appears linear
+
+
+3.2.2 Spearman Rank Correlation
+
+  Property             | Description
+  ---------------------+------------------------------------------------------------
+  Purpose              | Measure the strength of a monotonic (consistently
+                       | increasing or decreasing) relationship
+  Assumptions          | Ordinal or continuous data; does not require normality
+                       | or linearity
+  Coefficient range    | -1 to +1 (based on ranks, not raw values)
+  How it works         | Converts both variables to ranks, then computes Pearson's
+                       | r on the ranks. This makes it robust to outliers and
+                       | non-linear (but monotonic) relationships
+  When to use          | Data is non-normal, contains outliers, or the relationship
+                       | is monotonic but not necessarily linear
+
+
+3.2.3 Kendall's Tau
+
+  Property             | Description
+  ---------------------+------------------------------------------------------------
+  Purpose              | Measure the ordinal association between two variables
+                       | based on concordant and discordant pairs
+  Assumptions          | Ordinal or continuous data; minimal assumptions
+  Coefficient range    | -1 to +1 (typically smaller in magnitude than Spearman
+                       | for the same data)
+  How it works         | Counts the number of concordant pairs (both variables
+                       | increase together) vs. discordant pairs (one increases
+                       | while the other decreases)
+  When to use          | Small sample sizes or when a more conservative estimate
+                       | is preferred. More robust than Spearman for tied ranks
+
+
+3.3 Auto-Recommendation Logic
+
+When the method is set to "auto", OncoViz runs the Shapiro-Wilk normality test on both variables. If both pass, Pearson is recommended. If either fails, Spearman is recommended. The recommendation is displayed as an informational banner with an explanation of why that method was chosen.
+
+
+3.4 Confidence Interval (Fisher z-transformation)
+
+The 95% confidence interval for the correlation coefficient is computed using Fisher's z-transformation:
+
+  1. Transform r to z-space: z = arctanh(r)
+  2. Compute the standard error: SE = 1 / sqrt(n - 3)
+  3. Build the CI in z-space: z +/- z_crit x SE
+  4. Back-transform to r-space: r = tanh(z)
+
+This transformation is necessary because the sampling distribution of r is not symmetric (it is bounded by -1 and +1), but the z-transform is approximately normal.
+
+
+3.5 Correlation Strength Interpretation
+
+  Absolute r Value     | Interpretation
+  ---------------------+--------------------
+  < 0.1                | Negligible
+  0.1 - 0.3            | Weak
+  0.3 - 0.5            | Moderate
+  0.5 - 0.7            | Strong
+  > 0.7                | Very strong
+
+
+3.6 Result Display
+
+The correlation result card shows four top-level metrics: r (the correlation coefficient), R-squared (the coefficient of determination, representing the proportion of variance in one variable explained by the other), p-value, and significance badge. Below these, a caption line shows the 95% CI, strength, direction, and sample size.
+
+
+3.7 Scatter Plot with Trendline
+
+An interactive scatter plot is generated with a trendline whose type depends on the method:
+
+  - Pearson: OLS (ordinary least squares) linear trendline
+  - Spearman / Kendall: LOWESS (locally weighted scatterplot smoothing) trendline, which captures non-linear monotonic trends
+
+
+3.8 Correlation Matrix
+
+An optional full correlation matrix heatmap can be toggled. It computes pairwise correlations among all numerical variables using the method from the last run (defaulting to Spearman). Features include a significance threshold slider where pairs with |r| >= the threshold are marked with an asterisk, a purple-orange (PuOr) diverging color scale (colorblind-safe, avoiding red-green), and a summary of strong pairs listed below the heatmap.
+
+================================================================================
+
+4. SURVIVAL ANALYSIS
+
+This tab performs Kaplan-Meier survival estimation, the standard method for analyzing time-to-event data in clinical trials.
+
+
+4.1 What is Survival Analysis?
+
+Survival analysis is a set of statistical methods for analyzing the expected duration until an event of interest occurs (e.g., death, disease progression, relapse). Unlike standard regression, survival analysis can handle censored observations—patients who have not experienced the event by the end of the study period.
+
+
+4.2 Dataset Configuration
+
+Each dataset in OncoViz has pre-configured survival columns:
+
+  Dataset              | Configuration
+  ---------------------+------------------------------------------------------------
+  VA Lung Cancer       | Time column: t (survival time in days);
+                       | Event column: event (1 = died, 0 = censored)
+  Prostate Cancer      | Time column: dtime (survival time in months);
+                       | Event column: event (1 = died from any cause, 0 = alive)
+
+These are automatically selected—the user does not need to specify them.
+
+
+4.3 Kaplan-Meier Estimation
+
+The Kaplan-Meier estimator is a non-parametric method that estimates the survival function S(t)—the probability of surviving beyond time t. It handles censored data by adjusting the risk set at each event time.
+
+At each time point where an event occurs, the survival probability is updated as: S(t) = S(t-1) x (1 - d_t / n_t), where d_t is the number of events at time t and n_t is the number of patients at risk (alive and not yet censored) just before time t.
+
+OncoViz uses the lifelines library (KaplanMeierFitter) for the estimation, which also provides 95% confidence intervals using Greenwood's formula.
+
+
+4.4 Grouping
+
+The user can optionally group the analysis by any categorical or binary variable (e.g., therapy type, tumor cell type, treatment dose). When no grouping is selected, a single "Overall" survival curve is shown. When a group is selected, separate Kaplan-Meier curves are fitted for each group level, allowing visual and statistical comparison.
+
+
+4.5 Log-Rank Test
+
+  Property             | Description
+  ---------------------+------------------------------------------------------------
+  Purpose              | Test whether the survival distributions of two or more
+                       | groups are statistically different
+  How it works         | Compares the observed number of events in each group to
+                       | the expected number under the null hypothesis that all
+                       | groups have the same survival distribution
+  Test statistic       | Chi-square statistic with (k-1) degrees of freedom,
+                       | where k is the number of groups
+  Null hypothesis      | All groups have identical survival functions
+  2 groups             | Standard log-rank test (lifelines logrank_test)
+  3+ groups            | Multivariate log-rank test
+                       | (lifelines multivariate_logrank_test)
+
+
+4.6 Kaplan-Meier Plot Components
+
+The KM plot includes several visual elements:
+
+  - Step function curves: The main survival curves, one per group, colored from the colorblind-safe palette
+  - Confidence interval bands: Shaded regions around each curve showing the 95% CI (Greenwood's formula)
+  - Censoring marks: Cross-thin tick marks on the curve at each time a patient was censored (exited the study without the event)
+  - Median survival line: Horizontal dashed grey line at S(t) = 0.50, with vertical dotted lines dropping from this intersection to the x-axis for each group, colored to match the group
+
+
+4.7 Number at Risk Table
+
+Below the KM plot, a number-at-risk table shows how many patients remain in each group at evenly spaced time points. This is essential for interpreting the reliability of the survival curve at later time points—when the at-risk count is small, the survival estimate becomes less reliable (wider confidence intervals). Time points are labeled with the appropriate unit (days for VA Lung Cancer, months for Prostate Cancer).
+
+
+4.8 Summary Table
+
+A summary table shows for each group: the sample size (N), number of events, median survival time (with units), and the 95% confidence interval for the median. If the survival curve does not cross 0.50, the median is reported as "Not reached." The 95% CI for the median is derived by finding where the upper and lower confidence bands of the survival function cross the 0.50 threshold.
+
+
+4.9 Median Survival CI Computation
+
+The 95% CI for median survival is computed as follows: the lower bound of the CI is the last time at which the upper confidence band of S(t) is >= 0.50 (this is the earliest the median could be). The upper bound is the last time at which the lower confidence band of S(t) is >= 0.50 (this is the latest the median could be). If the bounds are inverted due to edge cases, they are swapped.
+
+================================================================================
+
+5. GLOBAL FEATURES
+
+
+5.1 Figure Export
+
+Every plot in the Statistical Analysis module has a download section with a format dropdown (PNG, JPEG, SVG) and a "Download Figure" button. The export uses the kaleido library to render Plotly figures as static images at 3x scale (1200x700 base resolution). If kaleido is not installed, the button exports an interactive HTML file instead and displays an installation hint.
+
+
+5.2 Table Export
+
+Every data table (group statistics, post-hoc comparison results, at-risk table, KM summary, correlation details) has a CSV download button. The download includes all visible columns with proper formatting.
+
+
+5.3 Session State Persistence
+
+All test results are stored in Streamlit's session state. This means that when a user changes a dropdown selection or interacts with another part of the UI, previously computed results are not lost. Results are displayed only when the current variable selections match the stored result, ensuring that stale results from a different variable combination are never shown.
+
+
+5.4 Colorblind-Safe Design
+
+The entire dashboard avoids pure red and green in all contexts: chart colors, heatmap scales, significance indicators, and palette options. The default palette uses colors like steel blue (#0077B6), terra cotta (#E76F51), teal (#2A9D8F), and purple (#6A4C93). Diverging heatmaps use PuOr (purple-orange) instead of RdBu (red-blue).
+
+================================================================================
+
+6. IMPLEMENTATION REFERENCE
+
+
+6.1 Key Source Files
+
+  File                           | Description
+  -------------------------------+--------------------------------------------
+  src/utils/statistics.py        | All statistical test functions, effect size
+                                 | calculators, normality checks, test
+                                 | recommendation engine, and the TestResult
+                                 | dataclass
+  src/components/stats_panel.py  | Streamlit UI for all three analysis tabs,
+                                 | including variable selectors, result cards,
+                                 | plots, and download buttons
+  src/utils/helpers.py           | Formatting helpers (p-value, significance
+                                 | badge, effect size text), figure_download_ui,
+                                 | and dataframe_with_csv
+  src/data_loader.py             | Dataset loading, preprocessing, column
+                                 | metadata classification, and variable
+                                 | descriptions
+  src/theme.py                   | Colorblind-safe chart color palette and
+                                 | Plotly layout defaults
+
+
+6.2 Dependencies
+
+  Package              | Purpose
+  ---------------------+------------------------------------------------------------
+  scipy                | Shapiro-Wilk, t-test, Mann-Whitney U, ANOVA,
+                       | Kruskal-Wallis, chi-square, Fisher exact,
+                       | Pearson/Spearman/Kendall correlation
+  statsmodels          | Multiple testing correction (multipletests with
+                       | Bonferroni, BH-FDR, Holm)
+  lifelines            | Kaplan-Meier estimation (KaplanMeierFitter), log-rank
+                       | test, multivariate log-rank test
+  plotly               | All interactive charts (violin, scatter, forest,
+                       | heatmap, KM curves)
+  kaleido              | Static image export (PNG, JPEG, SVG) for Plotly figures
+  pandas / numpy       | Data manipulation, descriptive statistics,
+                       | crosstabulation

@@ -1,0 +1,22 @@
+# Core
+streamlit>=1.30.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualization
+plotly>=5.18.0
+
+# Statistical Analysis
+scipy>=1.11.0
+lifelines>=0.27.0          # Kaplan-Meier & survival analysis
+statsmodels>=0.14.0
+
+# Data handling
+xlrd>=2.0.0                # Reading .xls files (Prostate Cancer dataset)
+
+# Figure export (optional but recommended)
+kaleido>=0.2.1             # Plotly static image export (PNG, JPEG, SVG)
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
