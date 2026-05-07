@@ -15,7 +15,7 @@ statsmodels>=0.14.0
 xlrd>=2.0.0                # Reading .xls files (Prostate Cancer dataset)
 
 # Figure export (optional but recommended)
-kaleido>=0.2.1             # Plotly static image export (PNG, JPEG, SVG)
+kaleido==0.2.1             # Plotly static image export (v0 — no Chrome needed)
 
 # Testing
 pytest>=7.4.0
